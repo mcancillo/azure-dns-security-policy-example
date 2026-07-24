@@ -14,11 +14,21 @@ output "dns_security_policy_id" {
 }
 
 output "private_dns_resolver_inbound_ip" {
-  description = "Private IP of the DNS Resolver inbound endpoint (use as custom DNS server)."
+  description = "Private IP config of the DNS Resolver inbound endpoint."
   value       = azurerm_private_dns_resolver_inbound_endpoint.this.ip_configurations
 }
 
+output "firewall_private_ip" {
+  description = "Private IP of Azure Firewall (next hop for workload egress)."
+  value       = azurerm_firewall.this.ip_configuration[0].private_ip_address
+}
+
+output "firewall_public_ip" {
+  description = "Public IP of Azure Firewall."
+  value       = azurerm_public_ip.firewall.ip_address
+}
+
 output "log_analytics_workspace_id" {
-  description = "Log Analytics workspace receiving DNS logs."
+  description = "Log Analytics workspace receiving DNS and firewall logs."
   value       = azurerm_log_analytics_workspace.this.id
 }

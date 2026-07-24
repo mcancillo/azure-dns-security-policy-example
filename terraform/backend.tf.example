@@ -1,0 +1,22 @@
+# ---------------------------------------------------------------------------
+# Remote state backend (GAP MITIGATION: state security + locking + drift).
+#
+# Copy this file to backend.tf and fill in your values, or pass via
+# `terraform init -backend-config=...`. Backend blocks cannot use variables.
+#
+# Pre-create the storage account with:
+#   az group create -n rg-tfstate -l eastus
+#   az storage account create -n <uniquename> -g rg-tfstate --sku Standard_LRS \
+#       --encryption-services blob --min-tls-version TLS1_2 --allow-blob-public-access false
+#   az storage container create -n tfstate --account-name <uniquename> --auth-mode login
+# ---------------------------------------------------------------------------
+
+# terraform {
+#   backend "azurerm" {
+#     resource_group_name  = "rg-tfstate"
+#     storage_account_name = "<uniquename>"
+#     container_name       = "tfstate"
+#     key                  = "dns-security-policy.tfstate"
+#     use_azuread_auth     = true
+#   }
+# }

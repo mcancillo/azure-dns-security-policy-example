@@ -1,44 +1,51 @@
-# Azure DNS Security Policy — Example Architecture
+# Azure DNS Security Policy — Hardened Example Architecture
 
 Terraform example that prevents **DNS information leakage** (exfiltration and
 tunneling) using an [Azure DNS Security Policy](https://learn.microsoft.com/en-us/azure/dns/dns-security-policy)
-linked to a virtual network, with allow/block/alert rules, Microsoft threat
-intelligence, and full DNS query logging.
+linked to a virtual network — hardened with layered egress controls,
+detection/response, and governance guardrails.
 
 ## What gets deployed
 
-- **Resource group**, **virtual network** with a workload subnet and a delegated
-  subnet for the DNS Resolver inbound endpoint.
-- **Azure Private DNS Resolver** + inbound endpoint (resolution path for
-  hybrid / custom forwarding scenarios).
-- **DNS Security Policy** linked to the VNet, so *all* VNet DNS traffic is
-  inspected.
-- **Domain lists** (allow / block / catch-all) and **DNS security rules** that
-  implement a **default-deny (allow-list)** posture.
-- **Log Analytics workspace** + diagnostic setting streaming `DnsResponse` logs
-  for exfiltration hunting.
+- **VNet** with workload, DNS-resolver, and Azure Firewall subnets.
+- **DNS Security Policy** linked to the VNet with a hardened, ordered rule set
+  (block-first, default-deny).
+- **NSG + UDR + Azure Firewall** that force DNS through the inspected path and
+  block bypass channels (external resolvers, DoT, DoH).
+- **Private DNS Resolver** inbound endpoint for hybrid/custom resolution.
+- **Log Analytics + Microsoft Sentinel** with an analytics rule and email
+  alerting.
+- **Management lock + Azure Policy** to resist and detect tampering.
 
-See [`docs/architecture.md`](docs/architecture.md) for the diagram and rule
-model, and [`docs/hunting-queries.md`](docs/hunting-queries.md) for KQL.
+See [`docs/architecture.md`](docs/architecture.md) for the diagram and the full
+**gap-to-mitigation mapping**, [`docs/validation.md`](docs/validation.md) for a
+bypass/exfil test harness, and [`docs/hunting-queries.md`](docs/hunting-queries.md)
+for KQL.
 
-## Default-deny rule model
+## Hardened rule model (lowest number wins)
 
 | Priority | Action | Target |
 |----------|--------|--------|
-| 100 | Allow | Approved (allow-list) domains |
-| 200 | Block | Known exfil / C2 / tunneling domains |
-| 300 | Alert | Microsoft-managed threat-intel list |
+| 100 | Block | Known exfil / C2 / tunneling domains |
+| 110 | Block | Microsoft-managed threat-intel list |
+| 200 | Allow | Approved business FQDNs (narrow) |
+| 210 | Allow | Required Azure platform FQDNs |
 | 400 | Block | Everything else (wildcard `.`) |
 
-> Rules are evaluated by priority — **the lowest number wins**.
+## Defense-in-depth layers
+
+1. **DNS Security Policy** — filters VNet DNS (block-first, default-deny).
+2. **NSG** — denies direct external DNS (UDP/TCP 53, DoT 853) → no resolver bypass.
+3. **Azure Firewall** — FQDN allow-list on 443 blocks DoH tunneling; DNS proxy + logs.
+4. **Sentinel + alerts** — detects tunneling/exfil and notifies the SOC.
+5. **Lock + Azure Policy** — prevents deletion and audits disabled rules.
 
 ## Why `azapi`
 
-DNS Security Policy resource types
-(`Microsoft.Network/dnsResolverPolicies*`, `dnsResolverDomainLists`) are not yet
-in the `azurerm` provider, so they are deployed with the
-[`azapi`](https://registry.terraform.io/providers/Azure/azapi/latest) provider.
-Standard networking and logging use `azurerm`.
+DNS Security Policy resource types (`Microsoft.Network/dnsResolverPolicies*`,
+`dnsResolverDomainLists`) are not yet in the `azurerm` provider, so they are
+deployed with [`azapi`](https://registry.terraform.io/providers/Azure/azapi/latest).
+Networking, firewall, logging, and governance use `azurerm`.
 
 ## Prerequisites
 
@@ -51,6 +58,7 @@ Standard networking and logging use `azurerm`.
 ```bash
 cd terraform
 cp terraform.tfvars.example terraform.tfvars   # then edit values
+# (optional) cp backend.tf.example backend.tf  # for remote state
 
 az login
 az account set --subscription "<your-subscription-id>"
@@ -60,27 +68,37 @@ terraform plan
 terraform apply
 ```
 
-After apply, set the workload VNet / VM custom DNS server to the resolver
-inbound endpoint IP (see `terraform output`).
+Validate the controls with [`docs/validation.md`](docs/validation.md).
+
+## CI
+
+[`.github/workflows/terraform-ci.yml`](.github/workflows/terraform-ci.yml) runs
+`terraform fmt`, `validate`, and **tfsec** + **checkov** IaC security scans on
+every push/PR.
 
 ## Customizing the policy
 
-- Edit `allowlist_domains` / `blocklist_domains` in `terraform.tfvars`
-  (domains must end with a trailing dot, e.g. `example.com.`).
-- Start rule 300 in **Alert** mode, review logs, then switch to **Block** once
-  you're confident it won't disrupt legitimate traffic.
-- Scope wildcards carefully to avoid blocking CDNs / SaaS dependencies.
+- Edit `allowlist_domains` / `platform_allowlist_domains` / `blocklist_domains`
+  in `terraform.tfvars` (domains must end with a trailing dot, e.g. `example.com.`).
+- Keep the business allow-list **narrow** (specific FQDNs) to avoid creating
+  exfil channels via broad cloud parents like `*.blob.core.windows.net`.
+- Add required platform FQDNs before enabling in production so default-deny does
+  not break control-plane connectivity.
 
 ## Clean up
 
 ```bash
+# Resource lock must be removed first if enabled.
 terraform destroy
 ```
 
-## Notes
+## Notes & caveats
 
 - The `azapi` API version (`2025-10-01-preview`) and the managed threat-intel
-  list identifier may change as the feature moves toward GA — verify against
-  current Microsoft docs before production use.
-- This is an **example / reference** architecture, not a hardened production
-  module.
+  list identifier (`AzureManagedDomainListThreatIntel`) may change toward GA —
+  verify against current Microsoft docs before production use.
+- Log table/column names (`DnsResponse`, `ResponseCode`, etc.) depend on the
+  schema streamed to your workspace; adjust queries accordingly.
+- This is a **reference** architecture. It was authored without a local
+  `terraform validate` run (Terraform not installed in the authoring env) — run
+  `terraform init && validate` (and the CI) before deploying.

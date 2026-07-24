@@ -6,11 +6,13 @@
 # the VNet is evaluated against the ordered traffic rules below.
 #
 # Rule evaluation is by priority: the LOWEST priority number wins (highest
-# precedence). We implement a default-deny (allow-list) posture:
-#   100 -> Allow approved domains
-#   200 -> Block known-bad / exfiltration domains
-#   300 -> Alert (log) on Microsoft-managed threat-intel domains
-#   400 -> Block everything else (catch-all)
+# precedence). Hardened ordering — malicious domains are blocked BEFORE any
+# allow rule, so a compromised/allow-listed-by-mistake domain cannot be used:
+#   100 -> Block known-bad / exfiltration domains
+#   110 -> Block Microsoft-managed threat-intel domains
+#   200 -> Allow approved business domains
+#   210 -> Allow required Azure platform domains
+#   400 -> Block everything else (default-deny catch-all)
 # ---------------------------------------------------------------------------
 
 locals {
@@ -49,7 +51,7 @@ resource "azapi_resource" "vnet_link" {
   }
 }
 
-# Allow-list domain list.
+# Business allow-list domain list (narrow, specific FQDNs).
 resource "azapi_resource" "domain_list_allow" {
   type      = "Microsoft.Network/dnsResolverDomainLists@${local.api_version}"
   name      = "dl-allow-${var.name_prefix}"
@@ -60,6 +62,21 @@ resource "azapi_resource" "domain_list_allow" {
   body = {
     properties = {
       domains = var.allowlist_domains
+    }
+  }
+}
+
+# Azure platform allow-list domain list (management/agent connectivity).
+resource "azapi_resource" "domain_list_platform" {
+  type      = "Microsoft.Network/dnsResolverDomainLists@${local.api_version}"
+  name      = "dl-platform-${var.name_prefix}"
+  parent_id = azurerm_resource_group.this.id
+  location  = var.location
+  tags      = var.tags
+
+  body = {
+    properties = {
+      domains = var.platform_allowlist_domains
     }
   }
 }
@@ -94,29 +111,7 @@ resource "azapi_resource" "domain_list_all" {
   }
 }
 
-# Rule 100: ALLOW approved domains (highest precedence).
-resource "azapi_resource" "rule_allow" {
-  type      = "Microsoft.Network/dnsResolverPolicies/dnsSecurityRules@${local.api_version}"
-  name      = "rule-allow-approved"
-  parent_id = azapi_resource.dns_security_policy.id
-  location  = var.location
-  tags      = var.tags
-
-  body = {
-    properties = {
-      priority             = 100
-      dnsSecurityRuleState = "Enabled"
-      action = {
-        actionType = "Allow"
-      }
-      dnsResolverDomainLists = [
-        { id = azapi_resource.domain_list_allow.id }
-      ]
-    }
-  }
-}
-
-# Rule 200: BLOCK known exfiltration / C2 domains.
+# Rule 100: BLOCK known exfiltration / C2 domains (highest precedence).
 resource "azapi_resource" "rule_block" {
   type      = "Microsoft.Network/dnsResolverPolicies/dnsSecurityRules@${local.api_version}"
   name      = "rule-block-known-bad"
@@ -126,7 +121,7 @@ resource "azapi_resource" "rule_block" {
 
   body = {
     properties = {
-      priority             = 200
+      priority             = 100
       dnsSecurityRuleState = "Enabled"
       action = {
         actionType = "Block"
@@ -138,25 +133,69 @@ resource "azapi_resource" "rule_block" {
   }
 }
 
-# Rule 300: ALERT (log only) on Microsoft-managed threat-intelligence domains.
-# Use Alert first to observe impact before switching to Block.
-resource "azapi_resource" "rule_alert_ti" {
+# Rule 110: BLOCK Microsoft-managed threat-intelligence domains.
+# (Hardened from Alert -> Block so known-malicious domains do not resolve.)
+resource "azapi_resource" "rule_block_ti" {
   type      = "Microsoft.Network/dnsResolverPolicies/dnsSecurityRules@${local.api_version}"
-  name      = "rule-alert-threatintel"
+  name      = "rule-block-threatintel"
   parent_id = azapi_resource.dns_security_policy.id
   location  = var.location
   tags      = var.tags
 
   body = {
     properties = {
-      priority             = 300
+      priority             = 110
       dnsSecurityRuleState = "Enabled"
       action = {
-        actionType = "Alert"
+        actionType = "Block"
       }
-      # Microsoft-managed list of known malicious domains.
       managedDomainLists = [
         { id = "AzureManagedDomainListThreatIntel" }
+      ]
+    }
+  }
+}
+
+# Rule 200: ALLOW approved business domains.
+resource "azapi_resource" "rule_allow" {
+  type      = "Microsoft.Network/dnsResolverPolicies/dnsSecurityRules@${local.api_version}"
+  name      = "rule-allow-approved"
+  parent_id = azapi_resource.dns_security_policy.id
+  location  = var.location
+  tags      = var.tags
+
+  body = {
+    properties = {
+      priority             = 200
+      dnsSecurityRuleState = "Enabled"
+      action = {
+        actionType = "Allow"
+      }
+      dnsResolverDomainLists = [
+        { id = azapi_resource.domain_list_allow.id }
+      ]
+    }
+  }
+}
+
+# Rule 210: ALLOW required Azure platform domains (prevents default-deny from
+# breaking control-plane / guest-agent connectivity).
+resource "azapi_resource" "rule_allow_platform" {
+  type      = "Microsoft.Network/dnsResolverPolicies/dnsSecurityRules@${local.api_version}"
+  name      = "rule-allow-platform"
+  parent_id = azapi_resource.dns_security_policy.id
+  location  = var.location
+  tags      = var.tags
+
+  body = {
+    properties = {
+      priority             = 210
+      dnsSecurityRuleState = "Enabled"
+      action = {
+        actionType = "Allow"
+      }
+      dnsResolverDomainLists = [
+        { id = azapi_resource.domain_list_platform.id }
       ]
     }
   }

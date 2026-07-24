@@ -5,12 +5,20 @@ name_prefix         = "dnssec"
 vnet_address_space             = ["10.20.0.0/16"]
 workload_subnet_prefix         = "10.20.1.0/24"
 resolver_inbound_subnet_prefix = "10.20.2.0/28"
+firewall_subnet_prefix         = "10.20.3.0/26"
 
+# Narrow, specific FQDNs only (no broad *.windows.net / *.azure.com parents).
 allowlist_domains = [
-  "microsoft.com.",
-  "windows.net.",
-  "azure.com.",
-  "github.com.",
+  "api.contoso.com.",
+  "app.contoso.com.",
+]
+
+platform_allowlist_domains = [
+  "login.microsoftonline.com.",
+  "management.azure.com.",
+  "management.core.windows.net.",
+  "packages.microsoft.com.",
+  "azure.archive.ubuntu.com.",
 ]
 
 blocklist_domains = [
@@ -19,7 +27,9 @@ blocklist_domains = [
   "data-leak.example.",
 ]
 
-log_retention_days = 30
+log_retention_days   = 90
+alert_email          = "soc@contoso.com"
+enable_resource_lock = true
 
 tags = {
   project = "dns-security-policy-example"
