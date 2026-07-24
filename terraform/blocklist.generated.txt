@@ -1,0 +1,4 @@
+# Machine-generated block-list (refreshed by .github/workflows/refresh-blocklist.yml).
+# Do not edit by hand. One trailing-dot FQDN per line.
+# Seeded empty; the scheduled workflow populates this from abuse.ch feeds and
+# opens a PR. Terraform unions these entries with var.blocklist_domains.

@@ -84,20 +84,23 @@ sources (abuse.ch URLhaus/ThreatFox/Feodo, Spamhaus, OpenPhish, SANS ISC) and
 [`intel/blocklist.example.txt`](intel/blocklist.example.txt) for a categorized
 example (reserved placeholders + cited historical sinkholed domains).
 
-Generate an enforceable list from live feeds and feed it to Terraform:
+Generate an enforceable list from live feeds into the Terraform-read file:
 
 ```bash
 # Linux / CI
-./scripts/build-blocklist.sh > terraform/generated-blocklist.auto.tfvars
+./scripts/build-blocklist.sh > terraform/blocklist.generated.txt
 ```
 ```powershell
 # Windows
-./scripts/build-blocklist.ps1 | Out-File terraform/generated-blocklist.auto.tfvars -Encoding utf8
+./scripts/build-blocklist.ps1 | Out-File terraform/blocklist.generated.txt -Encoding utf8
 ```
 
-`*.auto.tfvars` is loaded automatically by Terraform and overrides
-`blocklist_domains`. Rule 110 additionally blocks Microsoft's managed
-threat-intel list with zero maintenance.
+Terraform reads [`terraform/blocklist.generated.txt`](terraform/blocklist.generated.txt)
+and **unions** it with `blocklist_domains`. A scheduled workflow
+([`.github/workflows/refresh-blocklist.yml`](.github/workflows/refresh-blocklist.yml))
+runs the builder daily and **opens a PR** with the refreshed list for review.
+Rule 110 additionally blocks Microsoft's managed threat-intel list with zero
+maintenance.
 
 ## Customizing the policy
 

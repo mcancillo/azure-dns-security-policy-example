@@ -17,6 +17,18 @@
 
 locals {
   api_version = "2025-10-01-preview"
+
+  # Merge the static example block-list with a machine-generated list produced
+  # from live threat-intel feeds (scripts/build-blocklist.*). The generated file
+  # is refreshed by the scheduled workflow and read here if present.
+  generated_blocklist_file = "${path.module}/blocklist.generated.txt"
+  generated_blocklist = fileexists(local.generated_blocklist_file) ? [
+    for line in split("\n", file(local.generated_blocklist_file)) :
+    trimspace(line)
+    if trimspace(line) != "" && !startswith(trimspace(line), "#")
+  ] : []
+
+  effective_blocklist = distinct(concat(var.blocklist_domains, local.generated_blocklist))
 }
 
 resource "azapi_resource" "dns_security_policy" {
@@ -91,7 +103,7 @@ resource "azapi_resource" "domain_list_block" {
 
   body = {
     properties = {
-      domains = var.blocklist_domains
+      domains = local.effective_blocklist
     }
   }
 }

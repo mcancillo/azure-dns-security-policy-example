@@ -1,0 +1,53 @@
+name: refresh-blocklist
+
+on:
+  schedule:
+    # Daily at 06:00 UTC.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_domains:
+        description: "Max number of domains to include"
+        required: false
+        default: "500"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build block-list from live threat-intel feeds
+        env:
+          MAX_DOMAINS: ${{ github.event.inputs.max_domains || '500' }}
+        run: |
+          chmod +x scripts/build-blocklist.sh
+          ./scripts/build-blocklist.sh > terraform/blocklist.generated.txt
+          echo "Domains (excluding comments):"
+          grep -vcE '^\s*#' terraform/blocklist.generated.txt || true
+
+      - name: Open PR with refreshed block-list
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: terraform/blocklist.generated.txt
+          branch: automated/refresh-blocklist
+          delete-branch: true
+          commit-message: "chore: refresh DNS block-list from threat-intel feeds"
+          title: "chore: refresh DNS block-list from threat-intel feeds"
+          labels: |
+            automated
+            security
+          body: |
+            Automated refresh of `terraform/blocklist.generated.txt` from credible
+            live threat-intel feeds (abuse.ch URLhaus + ThreatFox).
+
+            **Review before merge:**
+            - Scan for false positives / business-critical domains.
+            - Confirm the diff size is reasonable.
+            - The allow-list remains authoritative; allowed FQDNs win by rule order.
+
+            Source: `scripts/build-blocklist.sh` · see `intel/sources.md`.
