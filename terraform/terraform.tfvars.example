@@ -1,0 +1,28 @@
+location            = "eastus"
+resource_group_name = "rg-dns-security-example"
+name_prefix         = "dnssec"
+
+vnet_address_space             = ["10.20.0.0/16"]
+workload_subnet_prefix         = "10.20.1.0/24"
+resolver_inbound_subnet_prefix = "10.20.2.0/28"
+
+allowlist_domains = [
+  "microsoft.com.",
+  "windows.net.",
+  "azure.com.",
+  "github.com.",
+]
+
+blocklist_domains = [
+  "malicious-exfil.example.",
+  "tunnel-c2.example.",
+  "data-leak.example.",
+]
+
+log_retention_days = 30
+
+tags = {
+  project = "dns-security-policy-example"
+  owner   = "platform-security"
+  env     = "demo"
+}

@@ -1,0 +1,27 @@
+# Local .terraform directories
+**/.terraform/*
+.terraform.lock.hcl
+
+# State files
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Variable files with real values / secrets
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Plan output
+*.tfplan
+
+# CLI config
+.terraformrc
+terraform.rc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
