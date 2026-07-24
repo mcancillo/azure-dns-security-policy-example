@@ -76,6 +76,29 @@ Validate the controls with [`docs/validation.md`](docs/validation.md).
 `terraform fmt`, `validate`, and **tfsec** + **checkov** IaC security scans on
 every push/PR.
 
+## Block-list / threat intelligence
+
+The custom block-list should be **generated from credible, maintained feeds**,
+not hand-curated. See [`intel/sources.md`](intel/sources.md) for the recommended
+sources (abuse.ch URLhaus/ThreatFox/Feodo, Spamhaus, OpenPhish, SANS ISC) and
+[`intel/blocklist.example.txt`](intel/blocklist.example.txt) for a categorized
+example (reserved placeholders + cited historical sinkholed domains).
+
+Generate an enforceable list from live feeds and feed it to Terraform:
+
+```bash
+# Linux / CI
+./scripts/build-blocklist.sh > terraform/generated-blocklist.auto.tfvars
+```
+```powershell
+# Windows
+./scripts/build-blocklist.ps1 | Out-File terraform/generated-blocklist.auto.tfvars -Encoding utf8
+```
+
+`*.auto.tfvars` is loaded automatically by Terraform and overrides
+`blocklist_domains`. Rule 110 additionally blocks Microsoft's managed
+threat-intel list with zero maintenance.
+
 ## Customizing the policy
 
 - Edit `allowlist_domains` / `platform_allowlist_domains` / `blocklist_domains`

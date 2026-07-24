@@ -1,0 +1,61 @@
+# Example DNS block-list (categorized)
+#
+# PURPOSE: illustrate the CATEGORIES of domains a DNS Security Policy block-list
+# should cover, sourced from credible threat-intel practice. For enforcement,
+# generate the real list from live feeds (see intel/sources.md and
+# scripts/build-blocklist.*), or rely on rule 110 (Azure managed threat-intel).
+#
+# Two kinds of entries below:
+#   1. RFC 2606 / RFC 6761 reserved placeholders (.example / .test / .invalid) —
+#      SAFE to commit, never resolve, stand in for real feed categories.
+#   2. Historical, publicly documented, SINKHOLED / DEFUNCT domains — cited,
+#      illustrative only. Do NOT assume they are still malicious or still yours
+#      to block; verify before use.
+#
+# Format: one FQDN per line, trailing dot, lowercase. '#' = comment.
+
+# ---------------------------------------------------------------------------
+# 1) Malware C2 / botnet  (feed: abuse.ch Feodo Tracker, ThreatFox)
+# ---------------------------------------------------------------------------
+c2-botnet.example.
+emotet-c2.example.
+trickbot-panel.example.
+dridex-gate.example.
+
+# ---------------------------------------------------------------------------
+# 2) Malware distribution / payload delivery  (feed: abuse.ch URLhaus)
+# ---------------------------------------------------------------------------
+malware-drop.example.
+payload-delivery.example.
+fake-update.example.
+
+# ---------------------------------------------------------------------------
+# 3) Phishing / credential theft  (feed: OpenPhish, PhishTank)
+# ---------------------------------------------------------------------------
+login-verify-account.example.
+secure-bank-update.example.
+o365-reset-password.test.
+
+# ---------------------------------------------------------------------------
+# 4) DGA / algorithmically-generated domains  (feed: Spamhaus DGA, research)
+# ---------------------------------------------------------------------------
+kq3v9z7hb2wx8n4p.example.
+zzxytdwqvponmlkj.example.
+
+# ---------------------------------------------------------------------------
+# 5) DNS tunneling / exfiltration infrastructure  (behavioral detection)
+# ---------------------------------------------------------------------------
+tunnel-c2.example.
+data-exfil.example.
+dns-tunnel.invalid.
+
+# ---------------------------------------------------------------------------
+# 6) Historical, SINKHOLED / DEFUNCT malware domains — illustrative & cited.
+#    (These are famous, publicly documented; most are sinkholed/inactive.)
+# ---------------------------------------------------------------------------
+# WannaCry kill-switch domain, sinkholed by MalwareTech (2017). Ref:
+# https://www.malwaretech.com/2017/05/how-to-accidentally-stop-a-global-cyber-attacks.html
+iuqerfsodp9ifjaposdfjhgosurijfaewrwergwea.com.
+# Avalanche / GameOver Zeus infrastructure was sinkholed in coordinated
+# takedowns (Europol/US-CERT TA16-336A, 2016). Ref:
+# https://www.cisa.gov/news-events/alerts/2016/12/01/avalanche-crimeware-service-infrastructure
