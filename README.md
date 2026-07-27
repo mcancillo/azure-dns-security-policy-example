@@ -22,6 +22,14 @@ See [`docs/architecture.md`](docs/architecture.md) for the diagram and the full
 bypass/exfil test harness, and [`docs/hunting-queries.md`](docs/hunting-queries.md)
 for KQL.
 
+For the **attack-scenario walkthrough** (C2, DNS tunneling, DDoS, DNS poisoning)
+and how each policy rule mitigates it, see
+[`docs/how-dns-security-policy-mitigates-attacks.md`](docs/how-dns-security-policy-mitigates-attacks.md).
+Example category domain lists (allow / high-risk / internal block-list) are in
+[`intel/domain-lists-examples.md`](intel/domain-lists-examples.md). These
+scenarios are adapted from
+[learn.cloudpartner.fi](https://learn.cloudpartner.fi/posts/azure-dns-security-policy-with-threat-intelligence-protecting-the-first-step-of-every-cyberattack).
+
 ## Hardened rule model (lowest number wins)
 
 | Priority | Action | Target |
