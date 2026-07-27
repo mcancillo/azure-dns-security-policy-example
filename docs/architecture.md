@@ -58,6 +58,7 @@ domain still cannot resolve if it is known-bad.
 |-----------------------|---------------------------|
 | Bypass via external resolver (53/853) | NSG **denies** outbound 53/853 to Internet; firewall network rule denies too |
 | DoH to public resolvers on 443 | Firewall app rules **allow only approved HTTPS FQDNs** + explicit DoH deny |
+| Malicious FQDN reached over non-HTTP ports | **DNS-proxy FQDN network rule** denies known-bad domains on **all** ports/protocols |
 | Broad allow-list abused for exfil | Allow-list tightened to **specific FQDNs**; no `*.windows.net` parents |
 | Threat-intel only alerting | TI rule changed to **Block** |
 | Allowed domains skip inspection | Block/TI rules ordered **before** allow rules |
@@ -74,7 +75,7 @@ domain still cannot resolve if it is known-bad.
 | Resource Group / VNet / subnets | azurerm | Network foundation |
 | NSG (workload) | azurerm | Block direct external DNS (bypass prevention) |
 | Route table (UDR) | azurerm | Force egress through firewall |
-| Azure Firewall + policy | azurerm | Egress FQDN filtering, DoH block, DNS proxy |
+| Azure Firewall + policy | azurerm | Egress FQDN filtering, DoH block, DNS-proxy FQDN block rule, DNS proxy |
 | Private DNS Resolver + inbound endpoint | azurerm | Hybrid/custom resolution path |
 | DNS Security Policy / domain lists / rules / vnet link | azapi | Core DNS filtering control |
 | Log Analytics + diagnostics | azurerm | DNS + firewall logging |

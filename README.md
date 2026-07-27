@@ -44,7 +44,8 @@ scenarios are adapted from
 
 1. **DNS Security Policy** — filters VNet DNS (block-first, default-deny).
 2. **NSG** — denies direct external DNS (UDP/TCP 53, DoT 853) → no resolver bypass.
-3. **Azure Firewall** — FQDN allow-list on 443 blocks DoH tunneling; DNS proxy + logs.
+3. **Azure Firewall** — FQDN allow-list on 443 blocks DoH tunneling; a
+   **DNS-proxy FQDN network rule** blocks known-bad domains on all ports; DNS proxy + logs.
 4. **Sentinel + alerts** — detects tunneling/exfil and notifies the SOC.
 5. **Lock + Azure Policy** — prevents deletion and audits disabled rules.
 
