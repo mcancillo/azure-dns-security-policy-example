@@ -5,6 +5,8 @@
 # - Application rules restrict outbound HTTPS to an approved FQDN list, which
 #   blocks DNS-over-HTTPS (DoH) to public resolvers (e.g. cloudflare-dns.com,
 #   dns.google) that would otherwise tunnel around the DNS Security Policy.
+# - A DNS-proxy-backed FQDN network rule denies ALL ports/protocols to known-bad
+#   C2/exfil domains (the "DNS firewall" control), closing non-HTTP paths.
 # - Network rules deny raw DNS (53/853) egress as belt-and-suspenders.
 # ---------------------------------------------------------------------------
 
@@ -28,6 +30,12 @@ resource "azurerm_firewall_policy" "this" {
   dns {
     proxy_enabled = true
   }
+}
+
+# Firewall FQDN filtering needs the FQDNs without the trailing dot that the DNS
+# Security Policy requires, so reuse the same block-list and strip it here.
+locals {
+  firewall_block_fqdns = [for d in var.blocklist_domains : trimsuffix(d, ".")]
 }
 
 resource "azurerm_firewall_policy_rule_collection_group" "egress" {
@@ -80,6 +88,28 @@ resource "azurerm_firewall_policy_rule_collection_group" "egress" {
         type = "Https"
         port = 443
       }
+    }
+  }
+
+  # DNS Firewall rule: FQDN-based network filtering.
+  #
+  # This is the classic "DNS firewall" control — it relies on the Azure Firewall
+  # DNS proxy (proxy_enabled = true above) to resolve and pin the FQDNs below,
+  # then denies ALL ports/protocols to them. It complements the DNS Security
+  # Policy (which blocks the *resolution*) and the application rules (which only
+  # cover HTTPS/443): even if a workload gets the IP another way, any raw TCP/UDP
+  # session to a known-bad C2/exfil FQDN is dropped at the network layer.
+  network_rule_collection {
+    name     = "nrc-dns-firewall-block-fqdns"
+    priority = 150
+    action   = "Deny"
+
+    rule {
+      name              = "block-malicious-fqdns"
+      source_addresses  = [var.workload_subnet_prefix]
+      destination_fqdns = local.firewall_block_fqdns
+      destination_ports = ["1-65535"]
+      protocols         = ["TCP", "UDP"]
     }
   }
 

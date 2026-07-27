@@ -102,6 +102,7 @@ redirecting users to an attacker site for credential theft.
 | **CNAME-chain inspection** | Blocking `pennywise.it` also blocks anything resolving to it via CNAME (`cloudnoso.com → cdn.cloudnoso.com → pennywise.it`) | Native to the policy |
 | **VNet linkage (public + private DNS)** | All DNS from linked VNets is filtered | `azapi_resource.vnet_link` |
 | **Comprehensive logging** | Source, destination, action, timestamp, rule → Log Analytics / Storage / Event Hubs | `monitoring.tf` diagnostic setting |
+| **DNS firewall (FQDN network rule)** | Azure Firewall DNS proxy resolves & pins known-bad FQDNs, then denies **all** ports/protocols to them — closes non-HTTP paths the app rules miss | `firewall.tf` `nrc-dns-firewall-block-fqdns` |
 
 ---
 
